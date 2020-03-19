@@ -79,9 +79,7 @@ func worker(id string, conn net.Conn) {
 }
 
 func sendKills() {
-	for id, conn := range connects {
-		fmt.Println(id, conn.RemoteAddr().String())
-
+	for _, conn := range connects {
 		go func(conn net.Conn) {
 			n, err := conn.Write([]byte("kill"))
 			if err != nil {
