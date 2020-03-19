@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/go-vgo/robotgo"
 	"log"
@@ -82,45 +83,61 @@ func serverHeartTest() {
 }
 
 func main() {
-
+	var online bool
 	fmt.Println("程序运行时, 不要点击黑框框内部, 否则程序会暂停。")
 	fmt.Println("杀死GTA的快捷键为F4, 请尝试点击看看是否有作用, 然后直接最小化本程序就可以了.")
+	flag.BoolVar(&online, "online", true, "online")
+	flag.Parse()
 
-	fmt.Println("输入服务器地址(列如 127.0.0.1:25155), 一定一定按照列子的格式填写！")
-	fmt.Print(">>> ")
-	_, err := fmt.Scanln(&ipaddr)
+	if online {
+		fmt.Println("输入服务器地址(列如 127.0.0.1:25155), 一定一定按照列子的格式填写！")
+		fmt.Print(">>> ")
+		_, err := fmt.Scanln(&ipaddr)
 
-	if err != nil {
-		log.Fatal("读取输入失败!")
-	}
-
-	fmt.Printf("读取输入成功: %s \n", ipaddr)
-
-	dialTcp(ipaddr, false)
-	defer tcpServerConn.Close()
-
-	go clientWorker()
-	go serverHeartTest()
-
-	for {
-		clickedF4 := robotgo.AddEvents("f4")
-		if clickedF4 {
-			go func() {
-				write, err := tcpServerConn.Write([]byte("kill"))
-				if err != nil {
-					log.Println("[-] 向服务器发送kill失败")
-				} else {
-					log.Println("[+] 向服务器发送kill成功, 发送字节数为", write)
-				}
-			}()
-
-			// 如果与服务器的连接突然断开了. 可以断掉自己的进程.
-			if runStatus == false {
-				go KillProcess()
-			}
+		if err != nil {
+			log.Fatal("读取输入失败!")
 		}
 
-		// 防止Hook卡死
-		time.Sleep(2 * time.Second)
+		fmt.Printf("读取输入成功: %s \n", ipaddr)
+
+		dialTcp(ipaddr, false)
+		defer tcpServerConn.Close()
+
+		go clientWorker()
+		go serverHeartTest()
+
+		for {
+			clickedF4 := robotgo.AddEvents("f4")
+			if clickedF4 {
+				go func() {
+					write, err := tcpServerConn.Write([]byte("kill"))
+					if err != nil {
+						log.Println("[-] 向服务器发送kill失败")
+					} else {
+						log.Println("[+] 向服务器发送kill成功, 发送字节数为", write)
+					}
+				}()
+
+				// 如果与服务器的连接突然断开了. 可以断掉自己的进程.
+				if runStatus == false {
+					go KillProcess()
+				}
+			}
+
+			// 防止Hook卡死
+			time.Sleep(2 * time.Second)
+		}
+
+	} else {
+		fmt.Println("[!]以单机模式运行中...")
+		// 单机模式运行 (一般没啥用, 不过可以秒关GTA= =)
+		for {
+			clickedF4 := robotgo.AddEvents("f4")
+			if clickedF4 {
+				KillProcess()
+
+			}
+		}
 	}
+
 }
