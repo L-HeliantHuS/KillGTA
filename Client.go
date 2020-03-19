@@ -9,12 +9,13 @@ import (
 	"time"
 )
 
+var runStatus bool
 var ipaddr string
 var tcpServerConn net.Conn
 
 func KillProcess() {
-	killGTA := exec.Command("taskkill", "/F", "/IM", "GTA5.exe").Run()
-	killRockstar := exec.Command("taskkill", "/IM", "launcher.exe").Run()
+	killGTA := exec.Command("taskkill", "/F", "/T", "/IM", "GTA5.exe").Run()
+	killRockstar := exec.Command("taskkill", "/F", "/T", "/IM", "launcher.exe").Run()
 	if killGTA != nil {
 		log.Println("未成功杀死GTA, 请检查GTA是否运行中. Error: ", killGTA.Error())
 	} else {
@@ -46,10 +47,14 @@ func dialTcp(ip string, retryFlag bool) {
 
 // clientWorker 监听Server发送过来的Kill
 func clientWorker() {
+	runStatus = true
 	for {
 		buf := make([]byte, 4)
-		n, _ := tcpServerConn.Read(buf)
-
+		n, err := tcpServerConn.Read(buf)
+		if err != nil {
+			runStatus = false
+			break
+		}
 		msg := string(buf[:n])
 		if msg == "kill" {
 			go KillProcess()
@@ -68,6 +73,9 @@ func serverHeartTest() {
 			dialTcp(ipaddr, true)
 		} else {
 			log.Println("[DEBUG] Server is onlined!")
+		}
+		if runStatus == false {
+			go clientWorker()
 		}
 		time.Sleep(time.Second * 30)
 	}
@@ -97,13 +105,22 @@ func main() {
 	for {
 		clickedF4 := robotgo.AddEvents("f4")
 		if clickedF4 {
-			write, err := tcpServerConn.Write([]byte("kill"))
-			if err != nil {
-				log.Println("[-] 向服务器发送kill失败")
-			} else {
-				log.Println("[+] 向服务器发送kill成功, 发送字节数为", write)
+			go func() {
+				write, err := tcpServerConn.Write([]byte("kill"))
+				if err != nil {
+					log.Println("[-] 向服务器发送kill失败")
+				} else {
+					log.Println("[+] 向服务器发送kill成功, 发送字节数为", write)
+				}
+			}()
+
+			// 如果与服务器的连接突然断开了. 可以断掉自己的进程.
+			if runStatus == false {
+				go KillProcess()
 			}
 		}
-	}
 
+		// 防止Hook卡死
+		time.Sleep(2 * time.Second)
+	}
 }
