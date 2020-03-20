@@ -10,7 +10,7 @@ import (
 )
 
 var connects = make(map[string]net.Conn)
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") // 用于生成随机字符串
 
 // RandStringRunes 随机生成字符串
 func RandStringRunes(n int) string {
@@ -22,26 +22,27 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
+// tcpServer 服务器主函数
 func tcpServer(port int) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	// 延迟关闭所有的客户端
 	defer func() {
 		for _, conn := range connects {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
 	if err != nil {
-		log.Fatal(fmt.Sprintf("创建服务器失败: %v", err))
+		log.Fatal(fmt.Sprintf("[ERROR] 创建服务器失败: %v", err))
 	}
 
-	fmt.Printf("[+] 启动服务器成功, %s, 等待连接...\n", listener.Addr().String())
+	log.Printf("[SUCCESS] 启动服务器成功, %s, 等待连接...\n", listener.Addr().String())
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatal("有一个客户端连接失败了! 请注意检查! 当前连接数为: ", len(connects))
+			log.Fatal("[WARNING] 有一个客户端连接失败了! 请注意检查! 当前连接数为: ", len(connects))
 		}
 
 		id := RandStringRunes(6)
@@ -50,17 +51,18 @@ func tcpServer(port int) {
 	}
 }
 
+// worker 分配给每个客户端的协程
 func worker(id string, conn net.Conn) {
-	fmt.Printf("[!]新的客户端上线, ta的id为: %s, ta的地址为%s, 当前共有%d个客户端! \n", id, conn.RemoteAddr().String(), len(connects))
+	log.Printf("[INFO] 新的客户端上线, ta的id为: %s, ta的地址为%s, 当前共有%d个客户端! \n", id, conn.RemoteAddr().String(), len(connects))
 
 	for {
 		buf := make([]byte, 4)
 		readLen, err := conn.Read(buf)
 		if err != nil {
-			log.Println(conn.RemoteAddr().String(), "发送的消息读取失败, 他可能下线了.")
-
 			// 从列表中删除这个主机
 			delete(connects, id)
+
+			log.Println("[WARNING] ", conn.RemoteAddr().String(), "下线了, 当前在线主机数量: ", len(connects))
 
 			break
 		}
@@ -72,31 +74,32 @@ func worker(id string, conn net.Conn) {
 		} else if msg == "ping" {
 			_, err := conn.Write([]byte("pong"))
 			if err != nil {
-				log.Println(conn.RemoteAddr().String(), "心跳测试响应失败.")
+				log.Println("[ERROR] ", conn.RemoteAddr().String(), "心跳测试响应失败.")
 			}
 		}
 	}
 }
 
+// sendKills 发送给每个客户端Kill指令
 func sendKills() {
 	for _, conn := range connects {
 		go func(conn net.Conn) {
 			n, err := conn.Write([]byte("kill"))
 			if err != nil {
-				log.Println("向", conn.RemoteAddr().String(), "发送Kill指令失败!")
+				log.Println("[ERROR] 向", conn.RemoteAddr().String(), "发送Kill指令失败!")
 			} else {
-				fmt.Printf("[+] 向%s发送Kill指令成功, 发送字节数%d \n", conn.RemoteAddr().String(), n)
+				log.Printf("[SUCCESS] 向%s发送Kill指令成功, 发送字节数%d \n", conn.RemoteAddr().String(), n)
 			}
 		}(conn)
 	}
 }
 
+// status 启动一个协程来监测客户端数量
 func status() {
 	for {
-
-		fmt.Println("[DEBUG] 当前在线主机: ", len(connects))
-
 		time.Sleep(time.Second * 30)
+
+		log.Println("[SERVER-INFO] 当前在线主机: ", len(connects))
 	}
 }
 

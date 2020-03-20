@@ -14,18 +14,19 @@ var runStatus bool
 var ipaddr string
 var tcpServerConn net.Conn
 
+// KillProcess 杀死进程的主函数
 func KillProcess() {
 	killGTA := exec.Command("taskkill", "/F", "/T", "/IM", "GTA5.exe").Run()
 	killRockstar := exec.Command("taskkill", "/F", "/T", "/IM", "launcher.exe").Run()
 	if killGTA != nil {
-		log.Println("未成功杀死GTA, 请检查GTA是否运行中. Error: ", killGTA.Error())
+		log.Println("[WARNING] 未成功杀死GTA, 请检查GTA是否运行中. Error: ", killGTA.Error())
 	} else {
-		log.Println("成功杀死GTA! 检查你的首脑进度是否还存在吧！")
+		log.Println("[SUCCESS] 成功杀死GTA! 检查你的首脑进度是否还存在吧！")
 	}
 	if killRockstar != nil {
-		log.Println("未成功杀死R* Client, 请检查R* Client是否运行中. Error: ", killRockstar.Error())
+		log.Println("[WARNING] 未成功杀死R* Client, 请检查R* Client是否运行中. Error: ", killRockstar.Error())
 	} else {
-		log.Println("成功杀死R* Client! 检查你的首脑进度是否还存在吧！")
+		log.Println("[SUCCESS] 成功杀死R* Client! 检查你的首脑进度是否还存在吧！")
 	}
 }
 
@@ -34,15 +35,14 @@ func dialTcp(ip string, retryFlag bool) {
 	conn, err := net.Dial("tcp", ip)
 	if err != nil {
 		if !retryFlag {
-			log.Fatal("连接服务器失败:", err)
+			log.Fatal("[ERROR] 连接服务器失败:", err)
 		} else {
-			log.Println("服务器重新失败. 还会进行尝试.")
+			log.Println("[WARNING] 服务器重新连接失败. 不过还会进行尝试.")
 			return
 		}
 	}
 
-
-	fmt.Println("连接服务器成功, 服务器地址为:", conn.RemoteAddr().String())
+	fmt.Println("[SUCCESS] 连接服务器成功, 服务器地址为:", conn.RemoteAddr().String())
 	tcpServerConn = conn
 }
 
@@ -59,8 +59,6 @@ func clientWorker() {
 		msg := string(buf[:n])
 		if msg == "kill" {
 			go KillProcess()
-		} else if msg == "ping" {
-			log.Println("服务器在线, 而且在正常工作!")
 		}
 	}
 }
@@ -70,10 +68,10 @@ func serverHeartTest() {
 	for {
 		_, err := tcpServerConn.Write([]byte("ping"))
 		if err != nil {
-			log.Println("心跳包发送失败！请检查与服务器的连接.")
+			log.Println("[ERROR] 心跳包发送失败！请检查与服务器的连接.")
 			dialTcp(ipaddr, true)
 		} else {
-			log.Println("[DEBUG] Server is onlined!")
+			log.Println("[INFO] 服务器当前在线, 而且在正常工作! ")
 		}
 		if runStatus == false {
 			go clientWorker()
@@ -86,6 +84,8 @@ func main() {
 	var online bool
 	fmt.Println("程序运行时, 不要点击黑框框内部, 否则程序会暂停。")
 	fmt.Println("杀死GTA的快捷键为F4, 请尝试点击看看是否有作用, 然后直接最小化本程序就可以了.")
+
+	// 获取是否是以online或者是offline
 	flag.BoolVar(&online, "online", true, "online")
 	flag.Parse()
 
@@ -95,10 +95,10 @@ func main() {
 		_, err := fmt.Scanln(&ipaddr)
 
 		if err != nil {
-			log.Fatal("读取输入失败!")
+			log.Fatal("[ERROR] 读取输入失败!")
 		}
 
-		fmt.Printf("读取输入成功: %s \n", ipaddr)
+		fmt.Printf("[INFO] 读取输入成功: %s \n", ipaddr)
 
 		dialTcp(ipaddr, false)
 		defer tcpServerConn.Close()
@@ -112,9 +112,9 @@ func main() {
 				go func() {
 					write, err := tcpServerConn.Write([]byte("kill"))
 					if err != nil {
-						log.Println("[-] 向服务器发送kill失败")
+						log.Println("[ERROR] 向服务器发送kill失败")
 					} else {
-						log.Println("[+] 向服务器发送kill成功, 发送字节数为", write)
+						log.Println("[INFO] 向服务器发送kill成功, 发送字节数为", write)
 					}
 				}()
 
@@ -129,7 +129,7 @@ func main() {
 		}
 
 	} else {
-		fmt.Println("[!]以单机模式运行中...")
+		fmt.Println("[WARNING] 以单机模式运行中...")
 		// 单机模式运行 (一般没啥用, 不过可以秒关GTA= =)
 		for {
 			clickedF4 := robotgo.AddEvents("f4")
