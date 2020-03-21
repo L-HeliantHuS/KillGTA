@@ -13,20 +13,15 @@ import (
 var runStatus bool
 var ipaddr string
 var tcpServerConn net.Conn
+var PressKey string
 
 // KillProcess 杀死进程的主函数
 func KillProcess() {
 	killGTA := exec.Command("taskkill", "/F", "/T", "/IM", "GTA5.exe").Run()
-	killRockstar := exec.Command("taskkill", "/F", "/T", "/IM", "launcher.exe").Run()
 	if killGTA != nil {
 		log.Println("[WARNING] 未成功杀死GTA, 请检查GTA是否运行中. Error: ", killGTA.Error())
 	} else {
 		log.Println("[SUCCESS] 成功杀死GTA! 检查你的首脑进度是否还存在吧！")
-	}
-	if killRockstar != nil {
-		log.Println("[WARNING] 未成功杀死R* Client, 请检查R* Client是否运行中. Error: ", killRockstar.Error())
-	} else {
-		log.Println("[SUCCESS] 成功杀死R* Client! 检查你的首脑进度是否还存在吧！")
 	}
 }
 
@@ -70,24 +65,27 @@ func serverHeartTest() {
 		if err != nil {
 			log.Println("[ERROR] 心跳包发送失败！请检查与服务器的连接.")
 			dialTcp(ipaddr, true)
+			time.Sleep(5 * time.Second)
 		} else {
 			log.Println("[INFO] 服务器当前在线, 而且在正常工作! ")
+			time.Sleep(time.Second * 30)
 		}
 		if runStatus == false {
 			go clientWorker()
 		}
-		time.Sleep(time.Second * 30)
 	}
 }
 
 func main() {
 	var online bool
-	fmt.Println("程序运行时, 不要点击黑框框内部, 否则程序会暂停。")
-	fmt.Println("杀死GTA的快捷键为F4, 请尝试点击看看是否有作用, 然后直接最小化本程序就可以了.")
 
 	// 获取是否是以online或者是offline
+	flag.StringVar(&PressKey, "key", "f4", "key")
 	flag.BoolVar(&online, "online", true, "online")
 	flag.Parse()
+
+	fmt.Println("程序运行时, 不要点击黑框框内部, 否则程序会暂停。")
+	fmt.Printf("杀死GTA的快捷键为 %s , 请尝试点击看看是否有作用, 然后直接最小化本程序就可以了.\n", PressKey)
 
 	if online {
 		fmt.Println("输入服务器地址(列如 127.0.0.1:25155), 一定一定按照列子的格式填写！")
@@ -107,7 +105,7 @@ func main() {
 		go serverHeartTest()
 
 		for {
-			clickedF4 := robotgo.AddEvents("f4")
+			clickedF4 := robotgo.AddEvent(PressKey)
 			if clickedF4 {
 				go func() {
 					write, err := tcpServerConn.Write([]byte("kill"))
@@ -132,12 +130,11 @@ func main() {
 		fmt.Println("[WARNING] 以单机模式运行中...")
 		// 单机模式运行 (一般没啥用, 不过可以秒关GTA= =)
 		for {
-			clickedF4 := robotgo.AddEvents("f4")
+			clickedF4 := robotgo.AddEvents(PressKey)
 			if clickedF4 {
 				KillProcess()
 
 			}
 		}
 	}
-
 }
