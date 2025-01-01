@@ -18,6 +18,12 @@ var PressKey string
 // KillProcess 杀死进程的主函数
 func KillProcess() {
 	killGTA := exec.Command("taskkill", "/F", "/T", "/IM", "GTA5.exe").Run()
+	_ = exec.Command("taskkill", "/F", "/T", "/IM", "GTA5_BE.exe").Run()
+	_ = exec.Command("taskkill", "/F", "/T", "/IM", "Launcher.exe").Run()
+	_ = exec.Command("taskkill", "/F", "/T", "/IM", "RockerstarService.exe").Run()
+	_ = exec.Command("taskkill", "/F", "/T", "/IM", "RockstarErrorHandler.exe").Run()
+	_ = exec.Command("taskkill", "/F", "/T", "/IM", "SocialClubHelper.exe").Run()
+
 	if killGTA != nil {
 		log.Println("[WARNING] 未成功杀死GTA, 请检查GTA是否运行中. Error: ", killGTA.Error())
 	} else {
